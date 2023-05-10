@@ -62,6 +62,14 @@ else:
     import atexit
     atexit.register(finalize_s3)
 
+try:
+    from pyarrow._chfs import (  # noqa
+        ConsistentHashFileSystem, initialize_chfs, finalize_chfs)
+except ImportError:
+    _not_imported.append("ConsistentHashFileSystem")
+else:
+    initialize_chfs()
+
 
 def __getattr__(name):
     if name in _not_imported:

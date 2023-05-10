@@ -500,6 +500,9 @@ if(ARROW_FILESYSTEM)
                                 PROPERTIES SKIP_PRECOMPILE_HEADERS ON
                                            SKIP_UNITY_BUILD_INCLUSION ON)
   endif()
+  if(ARROW_CHFS)
+    list(APPEND ARROW_SRCS filesystem/chfs.cc)
+  endif()
 
   list(APPEND ARROW_TESTING_SRCS filesystem/test_util.cc)
 endif()

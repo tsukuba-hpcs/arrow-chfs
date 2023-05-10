@@ -155,6 +155,8 @@ class build_ext(_build_ext):
             os.environ.get('PYARROW_WITH_S3', '0'))
         self.with_hdfs = strtobool(
             os.environ.get('PYARROW_WITH_HDFS', '0'))
+        self.with_chfs = strtobool(
+            os.environ.get('PYARROW_WITH_CHFS', '0'))
         self.with_cuda = strtobool(
             os.environ.get('PYARROW_WITH_CUDA', '0'))
         self.with_substrait = strtobool(
@@ -210,6 +212,7 @@ class build_ext(_build_ext):
         '_s3fs',
         '_substrait',
         '_hdfs',
+        '_chfs',
         '_hdfsio',
         'gandiva']
 
@@ -281,6 +284,7 @@ class build_ext(_build_ext):
             append_cmake_bool(self.with_gcs, 'PYARROW_BUILD_GCS')
             append_cmake_bool(self.with_s3, 'PYARROW_BUILD_S3')
             append_cmake_bool(self.with_hdfs, 'PYARROW_BUILD_HDFS')
+            append_cmake_bool(self.with_chfs, 'PYARROW_BUILD_CHFS')
             append_cmake_bool(self.bundle_arrow_cpp,
                               'PYARROW_BUNDLE_ARROW_CPP')
             append_cmake_bool(self.bundle_cython_cpp,
@@ -349,6 +353,8 @@ class build_ext(_build_ext):
         if name == '_s3fs' and not self.with_s3:
             return True
         if name == '_hdfs' and not self.with_hdfs:
+            return True
+        if name == '_chfs' and not self.with_chfs:
             return True
         if name == '_dataset' and not self.with_dataset:
             return True

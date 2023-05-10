@@ -29,3 +29,4 @@
 #ifdef ARROW_S3
 #include "arrow/filesystem/s3fs.h"  // IWYU pragma: export
 #endif
+#include "arrow/filesystem/chfs.h"  // IWYU pragma: export

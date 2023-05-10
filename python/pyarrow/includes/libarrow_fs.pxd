@@ -271,6 +271,13 @@ cdef extern from "arrow/filesystem/api.h" namespace "arrow::fs" nogil:
         CResult[shared_ptr[CHadoopFileSystem]] Make(
             const CHdfsOptions& options)
         CHdfsOptions options()
+    
+    cdef cppclass CConsistentHashFileSystem "arrow::fs::ConsistentHashFileSystem"(CFileSystem):
+        @staticmethod
+        CResult[shared_ptr[CConsistentHashFileSystem]] Make()
+
+    cdef CStatus CInitializeCHFS "arrow::fs::InitializeCHFS"(c_string server)
+    cdef CStatus CFinalizeCHFS "arrow::fs::FinalizeCHFS"()
 
     cdef cppclass CMockFileSystem "arrow::fs::internal::MockFileSystem"(
             CFileSystem):

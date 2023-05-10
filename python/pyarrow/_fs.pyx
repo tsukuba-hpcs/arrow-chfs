@@ -493,6 +493,9 @@ cdef class FileSystem(_Weakrefable):
         elif typ == 'hdfs':
             from pyarrow._hdfs import HadoopFileSystem
             self = HadoopFileSystem.__new__(HadoopFileSystem)
+        elif typ == 'chfs':
+            from pyarrow._chfs import ConsistentHashFileSystem
+            self = ConsistentHashFileSystem.__new__(ConsistentHashFileSystem)
         elif typ.startswith('py::'):
             self = PyFileSystem.__new__(PyFileSystem)
         else:

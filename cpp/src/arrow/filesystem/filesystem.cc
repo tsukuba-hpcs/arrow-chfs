@@ -30,6 +30,7 @@
 #ifdef ARROW_S3
 #include "arrow/filesystem/s3fs.h"
 #endif
+#include "arrow/filesystem/chfs.h"
 #include "arrow/filesystem/localfs.h"
 #include "arrow/filesystem/mockfs.h"
 #include "arrow/filesystem/path_util.h"
