@@ -721,6 +721,10 @@ Result<std::shared_ptr<FileSystem>> FileSystemFromUriReal(const Uri& uri,
     return Status::NotImplemented("Got S3 URI but Arrow compiled without S3 support");
 #endif
   }
+  if (scheme == "chfs") {
+    ARROW_ASSIGN_OR_RAISE(auto chfs, ConsistentHashFileSystem::Make(io_context));
+    return chfs;
+  }
 
   if (scheme == "mock") {
     // MockFileSystem does not have an absolute / relative path distinction,
