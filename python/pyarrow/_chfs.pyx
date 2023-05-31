@@ -36,7 +36,7 @@ def finalize_chfs():
 cdef class ConsistentHashFileSystem(FileSystem):
     cdef:
         CConsistentHashFileSystem* chfs
-    def __init__(self):
+    def __init__(self, use_mmap=False):
         with nogil:
             wrapped = GetResultValue(CConsistentHashFileSystem.Make())
         self.init(<shared_ptr[CFileSystem]> wrapped)
