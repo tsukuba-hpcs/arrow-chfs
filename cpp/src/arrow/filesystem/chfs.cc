@@ -145,7 +145,42 @@ Status ConsistentHashFileSystem::DeleteFile(const std::string& path) {
 }
 
 Status ConsistentHashFileSystem::Move(const std::string& src, const std::string& dest) {
-  return Status::Invalid("Move not implemented");
+  int src_fd, dest_fd;
+  src_fd = chfs_open(src.c_str(), O_RDWR);
+  if (src_fd < 0) {
+    return Status::Invalid("open failed");
+  }
+  dest_fd = chfs_create(dest.c_str(), O_RDWR, S_IRWXU);
+  if (dest_fd < 0) {
+    return Status::Invalid("create failed");
+  }
+  int bs = 65536;
+  const char* bs_str = std::getenv("CHFS_CHUNK_SIZE");
+  if (bs_str != NULL) {
+    bs = std::stoi(bs_str);
+  }
+  int tsize;
+  std::vector<char> buffer(bs);
+  do {
+    tsize = chfs_read(src_fd, &buffer[0], bs);
+    if (tsize < 0) {
+      return Status::Invalid("move: chfs_read failed");
+    }
+    tsize = chfs_write(dest_fd, &buffer[0], tsize);
+    if (tsize < 0) {
+      return Status::Invalid("move: chfs_write failed");
+    }
+  } while (tsize == bs);
+  if (chfs_close(src_fd) < 0) {
+    return Status::Invalid("move: chfs_close(src_fd) failed");
+  }
+  if (chfs_close(dest_fd) < 0) {
+    return Status::Invalid("move: chfs_close(dest_fd) failed");
+  }
+  if (chfs_unlink(src.c_str()) < 0) {
+    return Status::Invalid("move: chfs_unlink failed");
+  }
+  return Status::OK();
 }
 
 Status ConsistentHashFileSystem::CopyFile(const std::string& src, const std::string& dest) {
@@ -232,7 +267,12 @@ public:
     return Status::OK();
   }
   Status Write(const std::shared_ptr<Buffer>& data) {
-    return Status::Invalid("Write not implemented");
+    int ret;
+    ret = chfs_write(fd, data->data(), data->size());
+    if (ret < 0) {
+      return Status::Invalid("Write failed");
+    }
+    return Status::OK();
   }
   Status Flush() {
     int ret;
