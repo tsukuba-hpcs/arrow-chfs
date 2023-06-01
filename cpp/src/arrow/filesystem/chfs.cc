@@ -253,10 +253,17 @@ public:
     if (ret < 0) {
       return Status::Invalid("Read failed");
     }
-    return Status::OK();
+    return ret;
   }
   Result<std::shared_ptr<Buffer>> Read(int64_t nbytes) {
-    return Status::Invalid("Read not implemented");
+    ARROW_ASSIGN_OR_RAISE(auto buf, arrow::AllocateResizableBuffer(nbytes, io_context_.pool()));
+    int ret;
+    ret = chfs_read(fd, buf->mutable_data(), nbytes);
+    if (ret < 0) {
+      return Status::Invalid("Read failed");
+    }
+    RETURN_NOT_OK(buf->Resize(ret));
+    return buf;
   }
   Status Write(const void* data, int64_t nbytes) {
     int ret;
