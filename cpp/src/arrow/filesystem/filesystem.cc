@@ -722,6 +722,9 @@ Result<std::shared_ptr<FileSystem>> FileSystemFromUriReal(const Uri& uri,
 #endif
   }
   if (scheme == "chfs") {
+    if (out_path != nullptr) {
+      *out_path = uri.path();
+    }
     ARROW_ASSIGN_OR_RAISE(auto chfs, ConsistentHashFileSystem::Make(io_context));
     return chfs;
   }
