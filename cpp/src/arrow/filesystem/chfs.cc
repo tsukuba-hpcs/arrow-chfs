@@ -35,6 +35,8 @@ extern "C" {
 #include <unistd.h>
 #include <fcntl.h>
 #include <sstream>
+#include <queue>
+
 
 namespace arrow {
 
@@ -101,8 +103,70 @@ Result<FileInfo> ConsistentHashFileSystem::GetFileInfo(const std::string& path) 
   return info;
 }
 
+struct ReadDirBuffer {
+  std::string base_dir;
+  std::vector<FileInfo> entries;
+  std::queue<std::string> targets;
+  std::queue<std::string> next_targets;
+};
+
+static int getfileinfo_filler(void *buf, const char *name, const struct stat *st, off_t off) {
+  if (name[0] == '.' && (name[1] == '\0' || (name[1] == '.' && name[2] == '\0'))) {
+    return 0;
+  }
+  ReadDirBuffer *rbuf = (ReadDirBuffer *)buf;
+  std::string path;
+  path += rbuf->base_dir;
+  if (rbuf->base_dir != "/") {
+    path += "/";
+  }
+  path += std::string(name);
+  if (S_ISDIR(st->st_mode)) {
+    FileInfo info(path, FileType::Directory);
+    rbuf->entries.push_back(info);
+    rbuf->next_targets.push(path);
+  } else if (S_ISREG(st->st_mode)) {
+    FileInfo info(path, FileType::File);
+    rbuf->entries.push_back(info);
+  }
+  return 0;
+}
+
 Result<std::vector<FileInfo>> ConsistentHashFileSystem::GetFileInfo(const FileSelector& select) {
-  return Status::Invalid("GetFileInfo not implemented");
+  FileInfo base;
+  Status stat = GetFileInfo(select.base_dir).Value(&base);
+  if (!stat.ok() || base.type() != FileType::Directory) {
+    if (select.allow_not_found) {
+      return std::vector<FileInfo>{};
+    }
+    return Status::Invalid("ConsistentHashFileSystem::GetFileInfo: path is not directory");
+  }
+  if (!select.recursive) {
+    int ret;
+    ReadDirBuffer buf;
+    buf.base_dir = select.base_dir;
+    ret = chfs_readdir(select.base_dir.c_str(), &buf, getfileinfo_filler);
+    if (ret != 0) {
+      return Status::Invalid("ConsistentHashFileSystem::GetFileInfo: chfs_readdir failed");
+    }
+    return buf.entries;
+  }
+  ReadDirBuffer buf;
+  buf.next_targets.push(select.base_dir);
+  for (int32_t depth = 0; depth < select.max_recursion && !buf.next_targets.empty(); depth++) {
+    std::swap(buf.next_targets, buf.targets);
+    while (!buf.targets.empty()) {
+      std::string target = buf.targets.front();
+      buf.targets.pop();
+      int ret;
+      buf.base_dir = target;
+      ret = chfs_readdir(target.c_str(), &buf, getfileinfo_filler);
+      if (ret != 0) {
+        return Status::Invalid("ConsistentHashFileSystem::GetFileInfo: chfs_readdir failed");
+      }
+    }
+  }
+  return buf.entries;
 }
 
 Status ConsistentHashFileSystem::CreateDir(const std::string& path, bool recursive) {
