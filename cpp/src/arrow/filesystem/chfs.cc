@@ -34,6 +34,7 @@ extern "C" {
 #include <sys/stat.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <sstream>
 
 namespace arrow {
 
@@ -105,12 +106,75 @@ Result<std::vector<FileInfo>> ConsistentHashFileSystem::GetFileInfo(const FileSe
 }
 
 Status ConsistentHashFileSystem::CreateDir(const std::string& path, bool recursive) {
-  int ret;
-  ret = chfs_mkdir(path.c_str(), S_IRWXU);
-  if (ret == 0) {
-    return Status::OK();
+  if (path.empty()) {
+    return Status::Invalid("ConsistentHashFileSystem::CreateDir: path is empty");
   }
-  return Status::Invalid("CreateDir failed");
+
+  if (!recursive) {
+    FileInfo info;
+    Status stat = GetFileInfo(path).Value(&info);
+    if (!stat.ok()) {
+      return Status::Invalid("GetFileInfo failed");
+    }
+    if (info.type() == FileType::File || info.type() == FileType::Unknown) {
+      return Status::Invalid("path is not directory");
+    }
+    if (info.type() == FileType::Directory) {
+      return Status::OK();
+    }
+    int ret;
+    ret = chfs_mkdir(path.c_str(), S_IRWXU);
+    if (ret == 0) {
+      return Status::OK();
+    }
+    return Status::Invalid("CreateDir failed");
+  }
+  std::stringstream ss{path};
+  std::string item;
+  std::string prefix;
+  std::getline(ss, item, '/');
+  if (!item.empty()) {
+    prefix += item;
+    FileInfo info;
+    Status stat = GetFileInfo(prefix).Value(&info);
+    if (!stat.ok()) {
+      return Status::Invalid("GetFileInfo failed");
+    }
+    if (info.type() == FileType::File || info.type() == FileType::Unknown) {
+      return Status::Invalid("path is not directory");
+    }
+    if (info.type() == FileType::NotFound) {
+      int ret;
+      ret = chfs_mkdir(prefix.c_str(), S_IRWXU);
+      if (ret != 0) {
+        return Status::Invalid("CreateDir failed");
+      }
+    }
+  }
+  prefix += '/';
+  while (std::getline(ss, item, '/')) {
+    if (item.empty()) {
+      return Status::Invalid("CreateDir: empty path");
+    }
+    prefix += item;
+    FileInfo info;
+    Status stat = GetFileInfo(prefix).Value(&info);
+    if (!stat.ok()) {
+      return Status::Invalid("GetFileInfo failed");
+    }
+    if (info.type() == FileType::File || info.type() == FileType::Unknown) {
+      return Status::Invalid("path is not directory");
+    }
+    if (info.type() == FileType::NotFound) {
+      int ret;
+      ret = chfs_mkdir(prefix.c_str(), S_IRWXU);
+      if (ret != 0) {
+        return Status::Invalid("CreateDir failed");
+      }
+    }
+    prefix += '/';
+  }
+  return Status::OK();
 }
 
 Status ConsistentHashFileSystem::DeleteDir(const std::string& path) {
