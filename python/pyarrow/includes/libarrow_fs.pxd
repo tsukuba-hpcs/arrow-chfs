@@ -276,7 +276,7 @@ cdef extern from "arrow/filesystem/api.h" namespace "arrow::fs" nogil:
         @staticmethod
         CResult[shared_ptr[CConsistentHashFileSystem]] Make()
 
-    cdef CStatus CInitializeCHFS "arrow::fs::InitializeCHFS"(c_string server)
+    cdef CStatus CInitializeCHFS "arrow::fs::InitializeCHFS"()
     cdef CStatus CFinalizeCHFS "arrow::fs::FinalizeCHFS"()
 
     cdef cppclass CMockFileSystem "arrow::fs::internal::MockFileSystem"(

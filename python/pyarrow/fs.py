@@ -67,8 +67,6 @@ try:
         ConsistentHashFileSystem, initialize_chfs, finalize_chfs)
 except ImportError:
     _not_imported.append("ConsistentHashFileSystem")
-else:
-    initialize_chfs()
 
 
 def __getattr__(name):

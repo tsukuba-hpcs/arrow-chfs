@@ -27,8 +27,7 @@ from pyarrow._fs cimport FileSystem
 import os
 
 def initialize_chfs():
-    cdef c_string server = os.environ['CHFS_SERVER'].encode('utf-8')
-    check_status(CInitializeCHFS(server))
+    check_status(CInitializeCHFS())
 
 def finalize_chfs():
     check_status(CFinalizeCHFS())
@@ -36,7 +35,8 @@ def finalize_chfs():
 cdef class ConsistentHashFileSystem(FileSystem):
     cdef:
         CConsistentHashFileSystem* chfs
-    def __init__(self, use_mmap=False):
+    def __init__(self):
+        initialize_chfs()
         with nogil:
             wrapped = GetResultValue(CConsistentHashFileSystem.Make())
         self.init(<shared_ptr[CFileSystem]> wrapped)

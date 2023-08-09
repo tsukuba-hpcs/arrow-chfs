@@ -71,7 +71,7 @@ struct ARROW_EXPORT ConsistentHashFileSystem : public FileSystem {
 };
 
 ARROW_EXPORT
-Status InitializeCHFS(std::string server);
+Status InitializeCHFS();
 
 ARROW_EXPORT
 Status FinalizeCHFS();

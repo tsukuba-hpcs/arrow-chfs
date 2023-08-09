@@ -36,6 +36,9 @@ extern "C" {
 #include <fcntl.h>
 #include <sstream>
 #include <queue>
+#include <errno.h>
+#include <string.h>
+#include <iostream>
 
 
 namespace arrow {
@@ -127,6 +130,7 @@ static int getfileinfo_filler(void *buf, const char *name, const struct stat *st
     rbuf->next_targets.push(path);
   } else if (S_ISREG(st->st_mode)) {
     FileInfo info(path, FileType::File);
+    info.set_size(st->st_size);
     rbuf->entries.push_back(info);
   }
   return 0;
@@ -320,12 +324,15 @@ public:
   int fd;
   bool chfs_closed;
   io::IOContext io_context_;
+  std::string path; // for debugging
   CHFSFile(int fd, const io::IOContext& io_context): fd(fd), chfs_closed(false), io_context_(io_context) {
   }
   Status WriteAt(int64_t position, const void* data, int64_t nbytes) {
     int ret;
     ret = chfs_pwrite(fd, data, nbytes, position);
     if (ret < 0) {
+      std::cerr << strerror(errno) << std::endl;
+      std::cerr << "path=" << path << std::endl;
       return Status::Invalid("WriteAt failed");
     }
     return Status::OK();
@@ -334,14 +341,20 @@ public:
     int64_t now, end;
     now = chfs_seek(fd, 0, SEEK_CUR);
     if (now < 0) {
+      std::cerr << strerror(errno) << std::endl;
+      std::cerr << "path=" << path << std::endl;
       return Status::Invalid("SEEK_CUR failed");
     }
     end = chfs_seek(fd, 0, SEEK_END);
     if (end < 0) {
+      std::cerr << strerror(errno) << std::endl;
+      std::cerr << "path=" << path << std::endl;
       return Status::Invalid("SEEK_END failed");
     }
     now = chfs_seek(fd, now, SEEK_SET);
     if (now < 0) {
+      std::cerr << strerror(errno) << std::endl;
+      std::cerr << "path=" << path << std::endl;
       return Status::Invalid("SEEK_SET failed");
     }
     return end;
@@ -350,6 +363,8 @@ public:
     int ret;
     ret = chfs_pread(fd, out, nbytes, position);
     if (ret < 0) {
+      std::cerr << strerror(errno) << std::endl;
+      std::cerr << "path=" << path << std::endl;
       return Status::Invalid("ReadAt failed");
     }
     return ret;
@@ -359,6 +374,8 @@ public:
     int ret;
     ret = chfs_pread(fd, buf->mutable_data(), nbytes, position);
     if (ret < 0) {
+      std::cerr << strerror(errno) << std::endl;
+      std::cerr << "path=" << path << std::endl;
       return Status::Invalid("ReadAt failed");
     }
     RETURN_NOT_OK(buf->Resize(ret));
@@ -368,6 +385,8 @@ public:
     int ret;
     ret = chfs_seek(fd, nbytes, SEEK_CUR);
     if (ret < 0) {
+      std::cerr << strerror(errno) << std::endl;
+      std::cerr << "path=" << path << std::endl;
       return Status::Invalid("Advance failed");
     }
     return Status::OK();
@@ -379,6 +398,8 @@ public:
     int ret;
     ret = chfs_read(fd, out, nbytes);
     if (ret < 0) {
+      std::cerr << strerror(errno) << std::endl;
+      std::cerr << "path=" << path << std::endl;
       return Status::Invalid("Read failed");
     }
     return ret;
@@ -388,6 +409,8 @@ public:
     int ret;
     ret = chfs_read(fd, buf->mutable_data(), nbytes);
     if (ret < 0) {
+      std::cerr << strerror(errno) << std::endl;
+      std::cerr << "path=" << path << std::endl;
       return Status::Invalid("Read failed");
     }
     RETURN_NOT_OK(buf->Resize(ret));
@@ -397,6 +420,8 @@ public:
     int ret;
     ret = chfs_write(fd, data, nbytes);
     if (ret < 0) {
+      std::cerr << strerror(errno) << std::endl;
+      std::cerr << "path=" << path << std::endl;
       return Status::Invalid("Write failed");
     }
     return Status::OK();
@@ -405,6 +430,8 @@ public:
     int ret;
     ret = chfs_write(fd, data->data(), data->size());
     if (ret < 0) {
+      std::cerr << strerror(errno) << std::endl;
+      std::cerr << "path=" << path << std::endl;
       return Status::Invalid("Write failed");
     }
     return Status::OK();
@@ -413,6 +440,8 @@ public:
     int ret;
     ret = chfs_fsync(fd);
     if (ret < 0) {
+      std::cerr << strerror(errno) << std::endl;
+      std::cerr << "path=" << path << std::endl;
       return Status::Invalid("Flush failed");
     }
     return Status::OK();
@@ -424,6 +453,8 @@ public:
     int ret;
     ret = chfs_seek(fd, position, SEEK_SET);
     if (ret < 0) {
+      std::cerr << strerror(errno) << std::endl;
+      std::cerr << "path=" << path << std::endl;
       return Status::Invalid("Seek failed");
     }
     return Status::OK();
@@ -432,6 +463,8 @@ public:
     int ret;
     ret = chfs_close(fd);
     if (ret < 0) {
+      std::cerr << strerror(errno) << std::endl;
+      std::cerr << "path=" << path << std::endl;
       return Status::Invalid("Close failed");
     }
     chfs_closed = true;
@@ -441,6 +474,8 @@ public:
     int64_t ret;
     ret = chfs_seek(fd, 0, SEEK_CUR);
     if (ret < 0) {
+      std::cerr << strerror(errno) << std::endl;
+      std::cerr << "path=" << path << std::endl;
       return Status::Invalid("Tell failed");
     }
     return ret;
@@ -455,10 +490,12 @@ Result<std::shared_ptr<io::InputStream>> ConsistentHashFileSystem::OpenInputStre
   int fd;
   fd = chfs_open(path.c_str(), O_RDWR);
   if (fd < 0) {
+    std::cerr << strerror(errno) << std::endl;
     return Status::Invalid("open failed");
   }
-  std::shared_ptr<io::InputStream> file = std::shared_ptr<CHFSFile>(new CHFSFile(fd, io_context_));
-  return file;
+  std::shared_ptr<CHFSFile> file = std::shared_ptr<CHFSFile>(new CHFSFile(fd, io_context_));
+  file->path = path;
+  return std::shared_ptr<io::InputStream>(file);
 }
 
 Result<std::shared_ptr<io::RandomAccessFile>> ConsistentHashFileSystem::OpenInputFile(
@@ -466,10 +503,12 @@ Result<std::shared_ptr<io::RandomAccessFile>> ConsistentHashFileSystem::OpenInpu
   int fd;
   fd = chfs_open(path.c_str(), O_RDWR);
   if (fd < 0) {
+    std::cerr << strerror(errno) << std::endl;
     return Status::Invalid("open failed");
   }
-  std::shared_ptr<io::RandomAccessFile> file = std::shared_ptr<CHFSFile>(new CHFSFile(fd, io_context_));
-  return file;
+  std::shared_ptr<CHFSFile> file = std::shared_ptr<CHFSFile>(new CHFSFile(fd, io_context_));
+  file->path = path;
+  return std::shared_ptr<io::RandomAccessFile>(file);
 }
 
 Result<std::shared_ptr<io::OutputStream>> ConsistentHashFileSystem::OpenOutputStream(
@@ -478,10 +517,12 @@ Result<std::shared_ptr<io::OutputStream>> ConsistentHashFileSystem::OpenOutputSt
   int fd;
   fd = chfs_create(path.c_str(), O_RDWR, S_IRWXU);
   if (fd < 0) {
+    std::cerr << strerror(errno) << std::endl;
     return Status::Invalid("create failed");
   }
-  std::shared_ptr<io::OutputStream> file = std::shared_ptr<CHFSFile>(new CHFSFile(fd, io_context_));
-  return file;
+  std::shared_ptr<CHFSFile> file = std::shared_ptr<CHFSFile>(new CHFSFile(fd, io_context_));
+  file->path = path;
+  return std::shared_ptr<io::OutputStream>(file);
 }
 
 Result<std::shared_ptr<io::OutputStream>> ConsistentHashFileSystem::OpenAppendStream(
@@ -490,10 +531,12 @@ Result<std::shared_ptr<io::OutputStream>> ConsistentHashFileSystem::OpenAppendSt
   int fd;
   fd = chfs_open(path.c_str(), O_RDWR);
   if (fd < 0) {
+    std::cerr << strerror(errno) << std::endl;
     return Status::Invalid("open failed");
   }
-  std::shared_ptr<io::OutputStream> file = std::shared_ptr<CHFSFile>(new CHFSFile(fd, io_context_));
-  return file;
+  std::shared_ptr<CHFSFile> file = std::shared_ptr<CHFSFile>(new CHFSFile(fd, io_context_));
+  file->path = path;
+  return std::shared_ptr<io::OutputStream>(file);
 }
 
 Result<std::shared_ptr<ConsistentHashFileSystem>> ConsistentHashFileSystem::Make(
@@ -502,12 +545,15 @@ Result<std::shared_ptr<ConsistentHashFileSystem>> ConsistentHashFileSystem::Make
   return ptr;
 }
 
-Status InitializeCHFS(std::string server) {
+Status InitializeCHFS() {
   int ret;
-  ret = chfs_init(server.c_str());
+  ret = chfs_initialized();
+  if (ret) return Status::OK();
+  ret = chfs_init(NULL);
   if (ret == 0) {
     return Status::OK();
   }
+  std::cerr << strerror(errno) << std::endl;
   return Status::Invalid("InitializeCHFS failed");
 }
 
@@ -517,6 +563,7 @@ Status FinalizeCHFS() {
   if (ret == 0) {
     return Status::OK();
   }
+  std::cerr << strerror(errno) << std::endl;
   return Status::Invalid("FinalizeCHFS failed");
 }
 
