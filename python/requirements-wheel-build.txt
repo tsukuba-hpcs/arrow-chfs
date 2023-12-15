@@ -3,3 +3,4 @@ oldest-supported-numpy>=0.14
 setuptools_scm
 setuptools>=58
 wheel
+numpy>=1.16.3 # not directly required, pinned by Snyk to avoid a vulnerability
