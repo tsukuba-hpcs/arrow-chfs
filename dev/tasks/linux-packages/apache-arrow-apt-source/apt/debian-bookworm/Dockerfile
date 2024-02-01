@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-FROM debian:bookworm
+FROM debian:12
 
 RUN \
   echo "debconf debconf/frontend select Noninteractive" | \
