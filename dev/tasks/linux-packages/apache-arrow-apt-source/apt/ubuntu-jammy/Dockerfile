@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-FROM ubuntu:jammy
+FROM ubuntu:22.04
 
 RUN \
   echo "debconf debconf/frontend select Noninteractive" | \
