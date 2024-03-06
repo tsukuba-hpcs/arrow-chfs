@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-ARG FROM=ubuntu:focal
+ARG FROM=ubuntu:20.04
 FROM ${FROM}
 
 RUN \
